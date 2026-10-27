@@ -1,0 +1,230 @@
+[
+  {
+    "id": 1,
+    "room": "Salle 2",
+    "members": ["Hanaa Sellal", "fares rayane"],
+    "departments": ["COMM", "RE"]
+  },
+  {
+    "id": 2,
+    "room": "Salle 2",
+    "members": ["anais douar", "wahab rebai"],
+    "departments": ["COMM", "RE"]
+  },
+  {
+    "id": 3,
+    "room": "Salle 2",
+    "members": ["serine ait messaoued", "Benyamine roukas"],
+    "departments": ["LRH", "RE", "IT"]
+  },
+  {
+    "id": 4,
+    "room": "Salle 2",
+    "members": ["Akrour abdelhadi", "ibtissem amrane"],
+    "departments": ["LRH", "RE"]
+  },
+  {
+    "id": 5,
+    "room": "Salle 2",
+    "members": ["Tiklet melissa", "achouri mohamed chakib"],
+    "departments": ["LRH", "RE"]
+  },
+  {
+    "id": 6,
+    "room": "Salle 1",
+    "members": ["amine tir", "bouzekria Ali"],
+    "departments": ["COMM", "LRH"]
+  },
+  {
+    "id": 7,
+    "room": "Salle 1",
+    "members": ["lina mokrab", "racha trabzi"],
+    "departments": ["COMM", "LRH"]
+  },
+  {
+    "id": 8,
+    "room": "Salle 1",
+    "members": ["amine haddadi", "rachedi ania"],
+    "departments": ["COMM", "LRH"]
+  },
+  {
+    "id": 9,
+    "room": "Salle 1",
+    "members": ["dounia badaoui", "Noor atab"],
+    "departments": ["COMM", "LRH"]
+  },
+  {
+    "id": 10,
+    "room": "Salle 1",
+    "members": ["imene saighi", "malak bouzidi"],
+    "departments": ["COMM", "LRH"]
+  },
+  {
+    "id": 11,
+    "room": "Salle 5",
+    "members": ["thiziri merzougi", "al hamarsheh chaima"],
+    "departments": ["IT", "COMM"]
+  },
+  {
+    "id": 12,
+    "room": "Salle 5",
+    "members": ["Cherifi serine lyna", "ines alik"],
+    "departments": ["LRH", "RE"]
+  },
+  {
+    "id": 13,
+    "room": "Salle 5",
+    "members": ["nemri amine", "boucherit mehdi"],
+    "departments": ["IT", "LRH"]
+  },
+  {
+    "id": 14,
+    "room": "Salle 5",
+    "members": ["Semma rayane", "omara noufel"],
+    "departments": ["IT", "COMM"]
+  },
+  {
+    "id": 15,
+    "room": "Salle 5",
+    "members": ["Arfi Maya", "rania alouane"],
+    "departments": ["IT", "LRH"]
+  },
+  {
+    "id": 16,
+    "room": "Salle 3",
+    "members": ["kheraz yanis", "chakib harkat"],
+    "departments": ["LRH", "COMM"]
+  },
+  {
+    "id": 17,
+    "room": "Salle 3",
+    "members": ["MAMMERI samy", "sid lyna"],
+    "departments": ["LRH", "COMM"]
+  },
+  {
+    "id": 18,
+    "room": "Salle 3",
+    "members": ["abda zizou", "selmi lotfi"],
+    "departments": ["LRH", "COMM"]
+  },
+  {
+    "id": 19,
+    "room": "Salle 3",
+    "members": ["ighil massyl", "aziz taguet"],
+    "departments": ["LRH", "RE"]
+  },
+  {
+    "id": 20,
+    "room": "Salle 3",
+    "members": ["Groune Alaa", "ines bencheikh"],
+    "departments": ["LRH", "IT"]
+  },
+  {
+    "id": 21,
+    "room": "Salle 6",
+    "members": ["laouni amine", "Ahmed Eins"],
+    "departments": ["LRH", "IT"]
+  },
+  {
+    "id": 22,
+    "room": "Salle 6",
+    "members": ["HOUAOURA Naceira"],
+    "departments": ["LRH"]
+  },
+  {
+    "id": 23,
+    "room": "Salle 6",
+    "members": ["Habes samy"],
+    "departments": ["LRH"]
+  },
+  {
+    "id": 24,
+    "room": "Salle 6",
+    "members": ["mehdi hacine chelali"],
+    "departments": ["LRH"]
+  },
+  {
+    "id": 25,
+    "room": "Salle 6",
+    "members": ["selma zamri"],
+    "departments": ["LRH"]
+  },
+  {
+    "id": 26,
+    "room": "Salle 5",
+    "members": ["Feriel Semid", "Cherine Mezani"],
+    "departments": ["RE", "IT"]
+  },
+  {
+    "id": 27,
+    "room": "Salle 5",
+    "members": ["Oussama ABED", "Rania SELLAL"],
+    "departments": ["LRH", "COMM"]
+  },
+  {
+    "id": 28,
+    "room": "Salle 5",
+    "members": ["berriche youssouf", "bouzid ramy"],
+    "departments": ["IT", "LRH"]
+  },
+  {
+    "id": 29,
+    "room": "Salle 5",
+    "members": ["Amirat wissal khouloud", "Baadache yara"],
+    "departments": ["LRH", "IT"]
+  },
+  {
+    "id": 30,
+    "room": "Salle 5",
+    "members": ["Boumaiza feriel"],
+    "departments": ["LRH"]
+  },
+  {
+    "id": 31,
+    "room": "Salle 10",
+    "members": ["Sad saoud abderrahmane", "Ines Alik"],
+    "departments": ["LRH"]
+  },
+  {
+    "id": 32,
+    "room": "Salle 10",
+    "members": ["sadaoui ania", "sadaoui nouha"],
+    "departments": ["COMM", "LRH"]
+  },
+  {
+    "id": 33,
+    "room": "Salle 10",
+    "members": ["Lezzar Manel", "Hetraf Wassim"],
+    "departments": ["LRH", "COMM"]
+  },
+  {
+    "id": 34,
+    "room": "Salle 10",
+    "members": ["Anis BSH"],
+    "departments": ["LRH"]
+  },
+  {
+    "id": 36,
+    "room": "Salle 8",
+    "members": ["MOKRI Abdelghani", "Sarah Abdedou"],
+    "departments": ["RE", "IT"]
+  },
+  {
+    "id": 37,
+    "room": "Salle 8",
+    "members": ["Chaker Kehal", "Riah Djawed"],
+    "departments": ["LRH", "COMM"]
+  },
+  {
+    "id": 38,
+    "room": "Salle 8",
+    "members": ["bouter neila", "Rif Rassim"],
+    "departments": ["LRH", "IT"]
+  },
+  {
+    "id": 39,
+    "room": "Salle 8",
+    "members": ["Firas Kasmi"],
+    "departments": []
+  }
+]

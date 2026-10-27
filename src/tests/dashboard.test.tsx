@@ -1,0 +1,134 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
+import { Dashboard } from '../components/Dashboard'
+
+const mockReorder = vi.fn()
+const mockUpdate = vi.fn()
+const mockCreate = vi.fn()
+const mockRemove = vi.fn()
+
+vi.mock('convex/react', () => ({
+  useQuery: vi.fn().mockReturnValue([
+    {
+      id: 'test-video-1',
+      _id: 'test-video-1',
+      title: 'FIRST REEL',
+      category: 'Commercial',
+      clientOrArtist: 'First Client',
+      year: '2026',
+      duration: '01:00',
+      role: 'Director & DP',
+      aspectRatio: '16:9',
+      resolution: '4K UHD',
+      videoSrc: '/vids/cars.mp4',
+      storageId: 'storage-1',
+      description: 'First video description',
+      gradient: 'from-amber-950 via-neutral-900 to-black',
+      timecode: '00:01:00:00',
+      order: 0,
+    },
+    {
+      id: 'test-video-2',
+      _id: 'test-video-2',
+      title: 'SECOND REEL',
+      category: 'Music Video',
+      clientOrArtist: 'Second Artist',
+      year: '2025',
+      duration: '03:30',
+      role: 'Director of Photography',
+      aspectRatio: '9:16',
+      resolution: '4K Vertical',
+      videoSrc: '/vids/festival.mp4',
+      storageId: 'storage-2',
+      description: 'Second video description',
+      gradient: 'from-fuchsia-950 via-purple-900 to-black',
+      timecode: '00:03:30:15',
+      order: 1,
+    },
+  ]),
+  useMutation: vi.fn((_mutationRef) => {
+    // Return specific mocks or general vi.fn()
+    return vi.fn((args) => {
+      mockReorder(args)
+      mockUpdate(args)
+      mockCreate(args)
+      mockRemove(args)
+      return Promise.resolve({ success: true })
+    })
+  }),
+}))
+
+afterEach(() => {
+  cleanup()
+  vi.clearAllMocks()
+})
+
+describe('Dashboard Route Component', () => {
+  it('displays existing videos list by default with order badges and re-order buttons', () => {
+    render(<Dashboard />)
+
+    // Heading & Video list
+    expect(screen.getByText(/portfolio videos/i)).toBeDefined()
+    expect(screen.getByText('FIRST REEL')).toBeDefined()
+    expect(screen.getByText('SECOND REEL')).toBeDefined()
+
+    // Order numbers
+    expect(screen.getByText('#01')).toBeDefined()
+    expect(screen.getByText('#02')).toBeDefined()
+
+    // Add Video button is present
+    const addButtons = screen.getAllByRole('button', { name: /add video/i })
+    expect(addButtons.length).toBeGreaterThan(0)
+
+    // Re-order buttons
+    const moveDownButtons = screen.getAllByLabelText(/move video down/i)
+    expect(moveDownButtons.length).toBe(2)
+  })
+
+  it('navigates to add video form when "Add Video" is clicked', () => {
+    render(<Dashboard />)
+
+    const addButtons = screen.getAllByRole('button', { name: /add video/i })
+    fireEvent.click(addButtons[0])
+
+    // Should display upload form
+    expect(screen.getByText(/upload portfolio video/i)).toBeDefined()
+    expect(screen.getByLabelText(/video title/i)).toBeDefined()
+    expect(screen.getByLabelText(/category/i)).toBeDefined()
+    expect(screen.getByLabelText(/client \/ artist/i)).toBeDefined()
+    expect(screen.getByLabelText(/duration/i)).toBeDefined()
+    expect(screen.getByLabelText(/role/i)).toBeDefined()
+    expect(screen.getByLabelText(/aspect ratio/i)).toBeDefined()
+    expect(screen.getByLabelText(/resolution/i)).toBeDefined()
+    expect(screen.getByLabelText(/description/i)).toBeDefined()
+    expect(screen.getByRole('button', { name: /upload video to portfolio/i })).toBeDefined()
+  })
+
+  it('opens edit form pre-filled with data when clicking on an existing video', () => {
+    render(<Dashboard />)
+
+    // Click on the first video card text
+    const videoTitle = screen.getByText('FIRST REEL')
+    fireEvent.click(videoTitle)
+
+    // Should display edit form with prefilled values
+    expect(screen.getByText(/edit video: first reel/i)).toBeDefined()
+    const titleInput = screen.getByLabelText(/video title/i) as HTMLInputElement
+    expect(titleInput.value).toBe('FIRST REEL')
+
+    const clientInput = screen.getByLabelText(/client \/ artist/i) as HTMLInputElement
+    expect(clientInput.value).toBe('First Client')
+
+    expect(screen.getByRole('button', { name: /save video changes/i })).toBeDefined()
+  })
+
+  it('triggers re-order when moving video down', () => {
+    render(<Dashboard />)
+
+    const moveDownButtons = screen.getAllByLabelText(/move video down/i)
+    fireEvent.click(moveDownButtons[0])
+
+    expect(mockReorder).toHaveBeenCalled()
+  })
+})
