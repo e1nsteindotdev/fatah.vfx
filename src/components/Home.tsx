@@ -3,6 +3,7 @@ import { useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { VideoCard, type VideoItem } from './VideoCard'
 import { VideoPlayerModal } from './VideoPlayerModal'
+import { DEFAULT_PROFILE, type ProfileData } from './EditProfileModal'
 import { Video, Mail, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 
 export const DUMMY_VIDEOS: VideoItem[] = [
@@ -153,6 +154,17 @@ export function Home() {
 
   const videos: VideoItem[] = convexVideos && convexVideos.length > 0 ? convexVideos : DUMMY_VIDEOS
 
+  let convexProfile: any
+  try {
+    convexProfile = useQuery(api.profile.get)
+  } catch {
+    convexProfile = undefined
+  }
+  const profile: ProfileData =
+    convexProfile && !Array.isArray(convexProfile) && convexProfile.name
+      ? convexProfile
+      : DEFAULT_PROFILE
+
   const [activeModalVideo, setActiveModalVideo] = useState<VideoItem | null>(null)
   const rowRef = useRef<HTMLDivElement>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -260,10 +272,10 @@ export function Home() {
         <header className="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="font-display font-black text-xl sm:text-2xl uppercase tracking-wider text-white">
-              Fatah Chafaa
+              {profile.name}
             </span>
             <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider bg-black/60 text-[#f5d020] uppercase border border-[#f5d020]/30 backdrop-blur-xs">
-              fatah.vfx
+              {profile.handle || 'fatah.vfx'}
             </span>
           </div>
 
@@ -276,7 +288,7 @@ export function Home() {
             </nav>
 
             <a
-              href="mailto:contact@fatah.vfx"
+              href={`mailto:${profile.email}`}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-sm bg-[#f5d020] hover:bg-yellow-400 text-black font-sans font-bold text-xs uppercase tracking-wider transition-all duration-200 shadow-sm cursor-pointer"
             >
               <Mail className="w-3.5 h-3.5" />
@@ -293,20 +305,20 @@ export function Home() {
             </span>
 
             <h1 className="font-display font-black text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl uppercase tracking-tight text-white leading-none drop-shadow-lg whitespace-nowrap">
-              Fatah Chafaa
+              {profile.name}
             </h1>
 
             <p className="text-xs sm:text-sm md:text-base text-neutral-300 font-sans font-normal leading-relaxed mt-2.5 sm:mt-3.5 max-w-xl drop-shadow">
-              Directing, Cinematography, and Visual Storytelling for Commercials, Films, and Documentaries.
+              {profile.description}
             </p>
 
             <h2 className="font-display font-black text-2xl sm:text-3xl md:text-4xl lg:text-5xl uppercase tracking-tight text-[#f5d020] leading-none mt-4 sm:mt-5 drop-shadow-lg whitespace-nowrap">
-              Filmmaker
+              {profile.title}
             </h2>
 
             <div className="flex flex-wrap items-center gap-3 mt-5 sm:mt-6">
               <a
-                href="mailto:contact@fatah.vfx"
+                href={`mailto:${profile.email}`}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-sm bg-[#f5d020] hover:bg-yellow-400 text-black font-sans font-bold text-xs uppercase tracking-wider transition-all duration-200 shadow-lg cursor-pointer"
               >
                 <Mail className="w-4 h-4 text-black" />
@@ -480,12 +492,12 @@ export function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-slate-500">
           <div className="flex items-center gap-2">
             <span className="font-display uppercase text-sm font-bold text-slate-800 tracking-wider">
-              Fatah Chafaa
+              {profile.name}
             </span>
             <span>•</span>
-            <span className="uppercase">Filmmaker</span>
+            <span className="uppercase">{profile.title}</span>
             <span>•</span>
-            <span className="text-amber-600 font-semibold">fatah.vfx</span>
+            <span className="text-amber-600 font-semibold">{profile.handle || 'fatah.vfx'}</span>
           </div>
 
           <div className="flex items-center gap-4 text-slate-600">
@@ -496,10 +508,10 @@ export function Home() {
               Dashboard
             </a>
             <a
-              href="mailto:contact@fatah.vfx"
+              href={`mailto:${profile.email}`}
               className="hover:text-black underline underline-offset-4 transition-colors"
             >
-              contact@fatah.vfx
+              {profile.email}
             </a>
             <span>© {new Date().getFullYear()} All Rights Reserved</span>
           </div>

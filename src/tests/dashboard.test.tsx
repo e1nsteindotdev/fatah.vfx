@@ -7,6 +7,7 @@ const mockReorder = vi.fn()
 const mockUpdate = vi.fn()
 const mockCreate = vi.fn()
 const mockRemove = vi.fn()
+const mockProfileUpdate = vi.fn()
 
 vi.mock('convex/react', () => ({
   useQuery: vi.fn().mockReturnValue([
@@ -54,6 +55,7 @@ vi.mock('convex/react', () => ({
       mockUpdate(args)
       mockCreate(args)
       mockRemove(args)
+      mockProfileUpdate(args)
       return Promise.resolve({ success: true })
     })
   }),
@@ -130,5 +132,78 @@ describe('Dashboard Route Component', () => {
     fireEvent.click(moveDownButtons[0])
 
     expect(mockReorder).toHaveBeenCalled()
+  })
+
+  it('displays edit profile buttons on the dashboard page and opens modal with profile fields', () => {
+    render(<Dashboard />)
+
+    // Check profile info banner is displayed
+    expect(screen.getByText('Fatah Chafaa')).toBeDefined()
+    expect(screen.getByText('Filmmaker')).toBeDefined()
+
+    // Find and click the Edit Profile Info button
+    const editProfileBtn = screen.getByRole('button', { name: /edit profile info/i })
+    expect(editProfileBtn).toBeDefined()
+    fireEvent.click(editProfileBtn)
+
+    // Modal should appear
+    expect(screen.getByRole('dialog')).toBeDefined()
+    expect(screen.getByText(/edit profile information/i)).toBeDefined()
+
+    // Form fields should exist with initial values
+    const nameInput = screen.getByLabelText(/full name \*/i) as HTMLInputElement
+    expect(nameInput.value).toBe('Fatah Chafaa')
+
+    const titleInput = screen.getByLabelText(/professional title \*/i) as HTMLInputElement
+    expect(titleInput.value).toBe('Filmmaker')
+
+    const emailInput = screen.getByLabelText(/email address \*/i) as HTMLInputElement
+    expect(emailInput.value).toBe('contact@fatah.vfx')
+
+    const descInput = screen.getByLabelText(/description \/ bio \*/i) as HTMLTextAreaElement
+    expect(descInput.value).toContain('Directing, Cinematography')
+
+    const handleInput = screen.getByLabelText(/handle \/ brand/i) as HTMLInputElement
+    expect(handleInput.value).toBe('fatah.vfx')
+  })
+
+  it('submits profile updates when save is clicked in the modal', () => {
+    render(<Dashboard />)
+
+    // Open modal
+    const editProfileBtn = screen.getByRole('button', { name: /edit profile info/i })
+    fireEvent.click(editProfileBtn)
+
+    // Modify fields
+    const emailInput = screen.getByLabelText(/email address \*/i) as HTMLInputElement
+    fireEvent.change(emailInput, { target: { value: 'newcontact@fatah.vfx' } })
+
+    const titleInput = screen.getByLabelText(/professional title \*/i) as HTMLInputElement
+    fireEvent.change(titleInput, { target: { value: 'Executive Director' } })
+
+    // Click Save Profile
+    const saveBtn = screen.getByRole('button', { name: /save profile/i })
+    fireEvent.click(saveBtn)
+
+    expect(mockProfileUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: 'newcontact@fatah.vfx',
+        title: 'Executive Director',
+      })
+    )
+  })
+
+  it('closes the edit profile modal when cancel is clicked', () => {
+    render(<Dashboard />)
+
+    const editProfileBtn = screen.getByRole('button', { name: /edit profile info/i })
+    fireEvent.click(editProfileBtn)
+
+    expect(screen.getByRole('dialog')).toBeDefined()
+
+    const cancelBtn = screen.getByRole('button', { name: /cancel/i })
+    fireEvent.click(cancelBtn)
+
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })

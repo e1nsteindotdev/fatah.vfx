@@ -18,4 +18,13 @@ export default defineSchema({
     timecode: v.string(),
     order: v.optional(v.number()),
   }).index("by_order", ["order"]),
+  profile: defineTable({
+    name: v.string(),
+    title: v.string(),
+    tagline: v.optional(v.string()),
+    email: v.string(),
+    description: v.string(),
+    handle: v.optional(v.string()),
+    location: v.optional(v.string()),
+  }),
 });

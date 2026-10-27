@@ -23,9 +23,13 @@ import {
   ArrowUp,
   ArrowDown,
   X,
-  Check
+  Check,
+  User,
+  Mail,
+  MapPin,
 } from 'lucide-react'
 import { VideoPlayerModal } from './VideoPlayerModal'
+import { EditProfileModal, DEFAULT_PROFILE, type ProfileData } from './EditProfileModal'
 import type { VideoItem } from './VideoCard'
 
 const CATEGORIES = ['Commercial', 'Music Video', 'Narrative', 'Documentary', 'Fashion'] as const
@@ -57,6 +61,22 @@ export function Dashboard() {
   const reorderVideos = useMutation(api.videos.reorder)
   const removeVideo = useMutation(api.videos.remove)
   const seedVideos = useMutation(api.videos.seedInitialVideos)
+
+  // Profile Query & Mutation
+  let convexProfile: any
+  try {
+    convexProfile = useQuery(api.profile.get)
+  } catch {
+    convexProfile = undefined
+  }
+  const updateProfile = useMutation(api.profile.update)
+
+  const profile: ProfileData =
+    convexProfile && !Array.isArray(convexProfile) && convexProfile.name
+      ? convexProfile
+      : DEFAULT_PROFILE
+
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
 
   // Navigation / View State
   const [viewMode, setViewMode] = useState<ViewMode>('list')
@@ -399,6 +419,26 @@ export function Dashboard() {
     }
   }
 
+  // Handle Save Profile
+  const handleSaveProfile = async (updated: ProfileData) => {
+    try {
+      await updateProfile({
+        name: updated.name,
+        title: updated.title,
+        tagline: updated.tagline,
+        email: updated.email,
+        description: updated.description,
+        handle: updated.handle,
+        location: updated.location,
+      })
+      setSuccessMessage('Profile information updated successfully!')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save profile changes.'
+      setErrorMessage(msg)
+      throw err
+    }
+  }
+
   return (
     <div className="min-h-screen bg-black text-neutral-100 flex flex-col font-sans selection:bg-[#f5d020] selection:text-black">
       {/* Top Header */}
@@ -424,6 +464,15 @@ export function Dashboard() {
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsProfileModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-neutral-900 hover:bg-neutral-800 text-neutral-200 hover:text-white font-sans font-medium text-xs uppercase tracking-wider border border-neutral-700 hover:border-neutral-500 transition-colors cursor-pointer"
+            >
+              <User className="w-3.5 h-3.5 text-[#f5d020]" />
+              <span>Edit Profile</span>
+            </button>
+
             {viewMode === 'list' ? (
               <button
                 type="button"
@@ -495,6 +544,57 @@ export function Dashboard() {
         {/* VIEW 1: VIDEOS LIST & RE-ORDERING (DEFAULT) */}
         {viewMode === 'list' && (
           <section className="flex flex-col gap-6">
+            {/* Profile Info Banner / Card */}
+            <div className="bg-neutral-950 border border-neutral-800 p-5 sm:p-6 rounded-sm flex flex-col md:flex-row md:items-center justify-between gap-5 shadow-xl relative overflow-hidden group/profile">
+              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#f5d020]/40 to-transparent" />
+              <div className="flex items-start sm:items-center gap-4">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-neutral-900 border border-neutral-700 flex items-center justify-center shrink-0 text-[#f5d020] shadow-inner">
+                  <User className="w-6 h-6 sm:w-7 sm:h-7" />
+                </div>
+                <div className="flex flex-col gap-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="font-display font-black text-xl sm:text-2xl uppercase tracking-wider text-white">
+                      {profile.name}
+                    </h1>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider bg-black text-[#f5d020] uppercase border border-[#f5d020]/30">
+                      {profile.title}
+                    </span>
+                    {profile.handle && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono text-neutral-400 bg-neutral-900 border border-neutral-800">
+                        {profile.handle}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-neutral-400 line-clamp-1 max-w-2xl">
+                    {profile.description}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-neutral-500 mt-0.5">
+                    <span className="flex items-center gap-1.5 text-neutral-300">
+                      <Mail className="w-3.5 h-3.5 text-[#f5d020]" />
+                      <span>{profile.email}</span>
+                    </span>
+                    {profile.location && (
+                      <span className="flex items-center gap-1.5 text-neutral-400">
+                        <MapPin className="w-3.5 h-3.5 text-neutral-500" />
+                        <span>{profile.location}</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsProfileModalOpen(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-sm bg-neutral-900 hover:bg-neutral-800 text-white font-sans font-bold text-xs uppercase tracking-wider border border-neutral-700 hover:border-[#f5d020]/50 transition-all cursor-pointer shadow-sm group"
+                >
+                  <Pencil className="w-3.5 h-3.5 text-[#f5d020] group-hover:rotate-12 transition-transform" />
+                  <span>Edit Profile Info</span>
+                </button>
+              </div>
+            </div>
+
             {/* Action Bar & Summary */}
             <div className="bg-neutral-950 border border-neutral-800 p-6 rounded-sm flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
               <div>
@@ -1201,6 +1301,14 @@ export function Dashboard() {
           onClose={() => setPreviewModalVideo(null)}
         />
       )}
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        currentProfile={profile}
+        onSave={handleSaveProfile}
+      />
     </div>
   )
 }
