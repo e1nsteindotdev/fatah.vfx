@@ -6,144 +6,6 @@ import { VideoPlayerModal } from './VideoPlayerModal'
 import { DEFAULT_PROFILE, type ProfileData } from './EditProfileModal'
 import { Video, Mail, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 
-export const DUMMY_VIDEOS: VideoItem[] = [
-  {
-    id: 'festival',
-    title: 'SOLARIS MUSIC FESTIVAL',
-    category: 'Music Video',
-    clientOrArtist: 'Live & Sound Experience',
-    year: '2025',
-    duration: '04:44',
-    role: 'Director & DP',
-    aspectRatio: '16:9',
-    resolution: '4K UHD',
-    videoSrc: '/vids/festival.mp4',
-    description: 'Electrifying open-air festival experience capturing crowd energy, stage pyrotechnics, and live artist performances.',
-    gradient: 'from-fuchsia-950 via-purple-900 to-black',
-    timecode: '00:04:44:12'
-  },
-  {
-    id: 'color-grading',
-    title: 'CHROMATIC REEL // COLOR GRADING',
-    category: 'Commercial',
-    clientOrArtist: 'Post-Production Studio',
-    year: '2026',
-    duration: '00:29',
-    role: 'Lead Colorist',
-    aspectRatio: '16:9',
-    resolution: '4K DCI',
-    videoSrc: '/vids/color-grading.mp4',
-    description: 'Color science breakdown showcasing dynamic range preservation, tonal contrast, and film emulation aesthetics.',
-    gradient: 'from-amber-950 via-neutral-900 to-black',
-    timecode: '00:00:29:18'
-  },
-  {
-    id: 'cars',
-    title: 'VELOCITY // AUTOMOTIVE DRIFT',
-    category: 'Commercial',
-    clientOrArtist: 'Motorsport & Performance',
-    year: '2025',
-    duration: '00:14',
-    role: 'Director & Cinematographer',
-    aspectRatio: '9:16',
-    resolution: '4K Vertical',
-    videoSrc: '/vids/cars.mp4',
-    description: 'High-speed track footage capturing precision drifts, asphalt burnouts, and raw kinetic horsepower.',
-    gradient: 'from-red-950 via-neutral-900 to-black',
-    timecode: '00:00:14:06'
-  },
-  {
-    id: 'celebra',
-    title: 'CELEBRA // NIGHTLIFE MOMENTS',
-    category: 'Documentary',
-    clientOrArtist: 'Cultural Archives',
-    year: '2025',
-    duration: '00:32',
-    role: 'Director & Camera Operator',
-    aspectRatio: '9:16',
-    resolution: '4K Vertical',
-    videoSrc: '/vids/celebra.mp4',
-    description: 'Candid celebration vignette capturing authentic laughter, nocturnal rhythms, and vibrant street life.',
-    gradient: 'from-emerald-950 via-slate-900 to-black',
-    timecode: '00:00:32:15'
-  },
-  {
-    id: 'cigaretts',
-    title: 'SMOKE & SHADOWS',
-    category: 'Narrative',
-    clientOrArtist: 'Independent Cinema',
-    year: '2025',
-    duration: '00:20',
-    role: 'Director & DP',
-    aspectRatio: '9:16',
-    resolution: '4K Vertical',
-    videoSrc: '/vids/cigaretts.mov',
-    description: 'Atmospheric neo-noir vignette exploring cinematic chiaroscuro lighting, rising smoke, and quiet tension.',
-    gradient: 'from-zinc-900 via-neutral-900 to-black',
-    timecode: '00:00:20:08'
-  },
-  {
-    id: 'crepolio',
-    title: 'CREPOLIO // URBAN FLAVORS',
-    category: 'Commercial',
-    clientOrArtist: 'Artisanal Culinary Brand',
-    year: '2025',
-    duration: '00:36',
-    role: 'Director & Food Stylist',
-    aspectRatio: '9:16',
-    resolution: '4K Vertical',
-    videoSrc: '/vids/crepolio.mp4',
-    description: 'Dynamic culinary showcase capturing sizzle, golden textures, and mouthwatering artisanal street food craft.',
-    gradient: 'from-amber-900 via-orange-950 to-black',
-    timecode: '00:00:36:20'
-  },
-  {
-    id: 'interspe',
-    title: 'INTERSPE // EXPERIMENTAL MOTION',
-    category: 'Fashion',
-    clientOrArtist: 'Avant-Garde Studio',
-    year: '2025',
-    duration: '01:07',
-    role: 'Visual Director',
-    aspectRatio: '1:1',
-    resolution: '2K Square',
-    videoSrc: '/vids/interspe.mp4',
-    description: 'Abstract visual exploration blending structured choreography, textural lighting, and sound-driven pacing.',
-    gradient: 'from-cyan-950 via-blue-950 to-black',
-    timecode: '00:01:07:14'
-  },
-  {
-    id: 'olympics',
-    title: 'ROAD TO GLORY // OLYMPIC SPIRIT',
-    category: 'Documentary',
-    clientOrArtist: 'Athletic Federation',
-    year: '2024',
-    duration: '01:36',
-    role: 'Director of Photography',
-    aspectRatio: '9:16',
-    resolution: '4K Vertical',
-    videoSrc: '/vids/olympics.mp4',
-    description: 'Inspiring documentary feature focusing on athlete dedication, relentless training, and stadium triumphs.',
-    gradient: 'from-blue-950 via-indigo-950 to-black',
-    timecode: '00:01:36:22'
-  },
-  {
-    id: 'sortie',
-    title: 'LA SORTIE // ESCAPE',
-    category: 'Narrative',
-    clientOrArtist: 'Short Film Festival',
-    year: '2024',
-    duration: '00:53',
-    role: 'Writer & Director',
-    aspectRatio: '16:9',
-    resolution: '1080p HD',
-    videoSrc: '/vids/sortie.mp4',
-    description: 'A tense cinematic scene tracking an impromptu departure under the glow of midnight streetlights.',
-    gradient: 'from-slate-900 via-neutral-900 to-black',
-    timecode: '00:00:53:10'
-  }
-]
-
 export function Home() {
   let convexVideos: VideoItem[] | undefined
   try {
@@ -152,7 +14,8 @@ export function Home() {
     convexVideos = undefined
   }
 
-  const videos: VideoItem[] = convexVideos && convexVideos.length > 0 ? convexVideos : DUMMY_VIDEOS
+  const isLoading = convexVideos === undefined
+  const videos: VideoItem[] = convexVideos ?? []
 
   let convexProfile: any
   try {
@@ -280,13 +143,6 @@ export function Home() {
           </div>
 
           <div className="flex items-center gap-4 sm:gap-8">
-            <nav className="hidden sm:flex items-center gap-6 md:gap-8 font-display font-black text-xs sm:text-sm tracking-widest text-white uppercase">
-              <span className="hover:text-[#f5d020] transition-colors cursor-default">Ideation</span>
-              <span className="hover:text-[#f5d020] transition-colors cursor-default">Shooting</span>
-              <span className="hover:text-[#f5d020] transition-colors cursor-default">Editing</span>
-              <a href="/dashboard" className="text-neutral-400 hover:text-[#f5d020] transition-colors">Dashboard</a>
-            </nav>
-
             <a
               href={`mailto:${profile.email}`}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-sm bg-[#f5d020] hover:bg-yellow-400 text-black font-sans font-bold text-xs uppercase tracking-wider transition-all duration-200 shadow-sm cursor-pointer"
@@ -357,7 +213,7 @@ export function Home() {
                   Selected Works
                 </h2>
                 <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-black text-amber-400">
-                  {videos.length}
+                  {isLoading ? '...' : videos.length}
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-sans mt-0.5">
@@ -369,15 +225,23 @@ export function Home() {
               {/* Header Navigation Arrows & Counter */}
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs font-bold text-slate-700 mr-1 select-none">
-                  <span className="text-amber-600">{String(currentIndex + 1).padStart(2, '0')}</span>
-                  <span className="text-slate-400"> / {String(videos.length).padStart(2, '0')}</span>
+                  {isLoading ? (
+                    <span className="text-slate-400">-- / --</span>
+                  ) : videos.length === 0 ? (
+                    <span className="text-slate-400">00 / 00</span>
+                  ) : (
+                    <>
+                      <span className="text-amber-600">{String(currentIndex + 1).padStart(2, '0')}</span>
+                      <span className="text-slate-400"> / {String(videos.length).padStart(2, '0')}</span>
+                    </>
+                  )}
                 </span>
                 <button
                   type="button"
                   onClick={() => scrollRow('left')}
-                  disabled={!canScrollLeft}
+                  disabled={!canScrollLeft || isLoading || videos.length <= 1}
                   className={`p-2 rounded-sm border transition-all ${
-                    canScrollLeft
+                    canScrollLeft && !isLoading && videos.length > 1
                       ? 'bg-white hover:bg-black text-slate-700 hover:text-[#f5d020] border-slate-300 cursor-pointer shadow-xs'
                       : 'bg-white/40 text-slate-300 border-slate-200 cursor-not-allowed opacity-50'
                   }`}
@@ -389,9 +253,9 @@ export function Home() {
                 <button
                   type="button"
                   onClick={() => scrollRow('right')}
-                  disabled={!canScrollRight}
+                  disabled={!canScrollRight || isLoading || videos.length <= 1}
                   className={`p-2 rounded-sm border transition-all ${
-                    canScrollRight
+                    canScrollRight && !isLoading && videos.length > 1
                       ? 'bg-white hover:bg-black text-slate-700 hover:text-[#f5d020] border-slate-300 cursor-pointer shadow-xs'
                       : 'bg-white/40 text-slate-300 border-slate-200 cursor-not-allowed opacity-50'
                   }`}
@@ -404,86 +268,118 @@ export function Home() {
             </div>
           </div>
 
-          {/* Video Showcase Carousel */}
-          <div className="relative group/carousel w-full">
+          {/* Video Showcase Carousel or Loading / Empty State */}
+          {isLoading ? (
             <div
-              ref={rowRef}
-              onScroll={handleScroll}
-              className="relative flex flex-nowrap overflow-x-auto w-full h-[520px] sm:h-[600px] md:h-[680px] lg:h-[720px] snap-x snap-mandatory scroll-smooth rounded-sm overflow-y-hidden hide-scrollbar gap-4 sm:gap-6 py-0.5"
+              data-testid="convex-loading-spinner"
+              className="w-full h-[400px] sm:h-[480px] md:h-[540px] rounded-sm bg-neutral-950/5 border border-dashed border-neutral-300 flex flex-col items-center justify-center gap-3 text-center px-4"
             >
-              {videos.map((video, idx) => {
-                const isVertical = video.aspectRatio === '9:16'
-                const isSquare = video.aspectRatio === '1:1'
-
-                return (
-                  <div
-                    key={video.id}
-                    className={`h-full shrink-0 snap-start transition-all duration-300 ${
-                      isVertical
-                        ? 'aspect-[9/16] w-auto max-w-[85vw]'
-                        : isSquare
-                        ? 'aspect-square w-auto max-w-[85vw]'
-                        : 'w-full min-w-[85vw] md:min-w-full'
-                    }`}
-                  >
-                    <VideoCard
-                      video={video}
-                      isActive={idx === currentIndex}
-                      onPlay={(selected) => setActiveModalVideo(selected)}
-                    />
-                  </div>
-                )
-              })}
+              <span className="w-10 h-10 border-3 border-amber-500 border-t-transparent rounded-full animate-spin" />
+              <span className="font-mono text-xs font-bold uppercase tracking-widest text-slate-800">
+                Loading...
+              </span>
             </div>
+          ) : videos.length === 0 ? (
+            <div className="w-full h-[320px] sm:h-[380px] rounded-sm bg-neutral-950/5 border border-dashed border-neutral-300 flex flex-col items-center justify-center gap-3 text-center px-4">
+              <div className="w-12 h-12 rounded-full bg-neutral-200 text-neutral-500 flex items-center justify-center">
+                <Video className="w-6 h-6" />
+              </div>
+              <h3 className="font-display font-medium text-lg uppercase text-slate-800">
+                No videos published yet
+              </h3>
+              <p className="text-xs text-slate-500 max-w-sm">
+                Videos added in the dashboard will appear here in the portfolio showcase.
+              </p>
+              <a
+                href="/dashboard"
+                className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-black hover:bg-neutral-800 text-[#f5d020] text-xs font-mono font-bold uppercase tracking-wider transition-colors"
+              >
+                Go to Dashboard
+              </a>
+            </div>
+          ) : (
+            <div className="relative group/carousel w-full">
+              <div
+                ref={rowRef}
+                onScroll={handleScroll}
+                className="relative flex flex-nowrap overflow-x-auto w-full h-[520px] sm:h-[600px] md:h-[680px] lg:h-[720px] snap-x snap-mandatory scroll-smooth rounded-sm overflow-y-hidden hide-scrollbar gap-4 sm:gap-6 py-0.5"
+              >
+                {videos.map((video, idx) => {
+                  const isVertical = video.aspectRatio === '9:16'
+                  const isSquare = video.aspectRatio === '1:1'
 
-            {/* Left & Right floating navigation chevrons */}
-            <button
-              type="button"
-              onClick={() => scrollRow('left')}
-              disabled={!canScrollLeft}
-              className={`absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-30 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-black/85 text-white border border-neutral-700 shadow-2xl flex items-center justify-center transition-all duration-200 backdrop-blur-md ${
-                canScrollLeft
-                  ? 'hover:bg-[#f5d020] hover:text-black hover:border-[#f5d020] hover:scale-110 active:scale-95 cursor-pointer opacity-100'
-                  : 'opacity-0 pointer-events-none'
-              }`}
-              aria-label="Previous video"
-              title="Previous video"
-            >
-              <ChevronLeft className="w-6 h-6 sm:w-7 sm:h-7" />
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollRow('right')}
-              disabled={!canScrollRight}
-              className={`absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-30 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-black/85 text-white border border-neutral-700 shadow-2xl flex items-center justify-center transition-all duration-200 backdrop-blur-md ${
-                canScrollRight
-                  ? 'hover:bg-[#f5d020] hover:text-black hover:border-[#f5d020] hover:scale-110 active:scale-95 cursor-pointer opacity-100'
-                  : 'opacity-0 pointer-events-none'
-              }`}
-              aria-label="Next video"
-              title="Next video"
-            >
-              <ChevronRight className="w-6 h-6 sm:w-7 sm:h-7" />
-            </button>
-          </div>
+                  return (
+                    <div
+                      key={video.id}
+                      className={`h-full shrink-0 snap-start transition-all duration-300 ${
+                        isVertical
+                          ? 'aspect-[9/16] w-auto max-w-[85vw]'
+                          : isSquare
+                          ? 'aspect-square w-auto max-w-[85vw]'
+                          : 'w-full min-w-[85vw] md:min-w-full'
+                      }`}
+                    >
+                      <VideoCard
+                        video={video}
+                        isActive={idx === currentIndex}
+                        onPlay={(selected) => setActiveModalVideo(selected)}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Left & Right floating navigation chevrons */}
+              <button
+                type="button"
+                onClick={() => scrollRow('left')}
+                disabled={!canScrollLeft}
+                className={`absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-30 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-black/85 text-white border border-neutral-700 shadow-2xl flex items-center justify-center transition-all duration-200 backdrop-blur-md ${
+                  canScrollLeft
+                    ? 'hover:bg-[#f5d020] hover:text-black hover:border-[#f5d020] hover:scale-110 active:scale-95 cursor-pointer opacity-100'
+                    : 'opacity-0 pointer-events-none'
+                }`}
+                aria-label="Previous video"
+                title="Previous video"
+              >
+                <ChevronLeft className="w-6 h-6 sm:w-7 sm:h-7" />
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollRow('right')}
+                disabled={!canScrollRight}
+                className={`absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-30 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-black/85 text-white border border-neutral-700 shadow-2xl flex items-center justify-center transition-all duration-200 backdrop-blur-md ${
+                  canScrollRight
+                    ? 'hover:bg-[#f5d020] hover:text-black hover:border-[#f5d020] hover:scale-110 active:scale-95 cursor-pointer opacity-100'
+                    : 'opacity-0 pointer-events-none'
+                }`}
+                aria-label="Next video"
+                title="Next video"
+              >
+                <ChevronRight className="w-6 h-6 sm:w-7 sm:h-7" />
+              </button>
+            </div>
+          )}
 
           {/* Dots Indicator / Jump bar */}
-          <div className="flex items-center justify-center gap-2 pt-1 pb-2">
-            {videos.map((v, i) => (
-              <button
-                key={v.id}
-                type="button"
-                onClick={() => scrollToIndex(i)}
-                className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
-                  i === currentIndex
-                    ? 'w-8 bg-[#f5d020]'
-                    : 'w-2 bg-neutral-400/50 hover:bg-neutral-600'
-                }`}
-                aria-label={`Go to ${v.title}`}
-                title={v.title}
-              />
-            ))}
-          </div>
+          {!isLoading && videos.length > 0 && (
+            <div className="flex items-center justify-center gap-2 pt-1 pb-2">
+              {videos.map((v, i) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => scrollToIndex(i)}
+                  className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                    i === currentIndex
+                      ? 'w-8 bg-[#f5d020]'
+                      : 'w-2 bg-neutral-400/50 hover:bg-neutral-600'
+                  }`}
+                  aria-label={`Go to ${v.title}`}
+                  title={v.title}
+                />
+              ))}
+            </div>
+          )}
         </section>
       </main>
 

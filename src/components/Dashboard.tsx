@@ -8,7 +8,6 @@ import {
   Clock,
   Trash2,
   ExternalLink,
-  Sparkles,
   CheckCircle2,
   AlertCircle,
   Play,
@@ -27,10 +26,16 @@ import {
   User,
   Mail,
   MapPin,
+  Zap,
+  Lock,
+  Eye,
+  EyeOff,
+  KeyRound,
 } from 'lucide-react'
 import { VideoPlayerModal } from './VideoPlayerModal'
 import { EditProfileModal, DEFAULT_PROFILE, type ProfileData } from './EditProfileModal'
 import type { VideoItem } from './VideoCard'
+import { optimizeForStreaming } from '../utils/faststart'
 
 const CATEGORIES = ['Commercial', 'Music Video', 'Narrative', 'Documentary', 'Fashion'] as const
 type Category = (typeof CATEGORIES)[number]
@@ -52,7 +57,53 @@ const GRADIENT_PRESETS = [
 
 type ViewMode = 'list' | 'create' | 'edit'
 
-export function Dashboard() {
+export const DASHBOARD_PASSWORD = 'collo21'
+const AUTH_STORAGE_KEY = 'dashboard_auth'
+
+export function Dashboard({
+  initialAuthenticated,
+}: {
+  initialAuthenticated?: boolean
+} = {}) {
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    if (initialAuthenticated !== undefined) return initialAuthenticated
+    if (typeof window === 'undefined') return false
+    try {
+      return sessionStorage.getItem(AUTH_STORAGE_KEY) === DASHBOARD_PASSWORD
+    } catch {
+      return false
+    }
+  })
+  const [enteredPassword, setEnteredPassword] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+
+  const handleUnlock = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (enteredPassword === DASHBOARD_PASSWORD) {
+      try {
+        sessionStorage.setItem(AUTH_STORAGE_KEY, DASHBOARD_PASSWORD)
+      } catch {
+        // ignore
+      }
+      setIsAuthenticated(true)
+      setPasswordError('')
+    } else {
+      setPasswordError('Incorrect password. Access denied.')
+    }
+  }
+
+  const handleLock = () => {
+    try {
+      sessionStorage.removeItem(AUTH_STORAGE_KEY)
+    } catch {
+      // ignore
+    }
+    setIsAuthenticated(false)
+    setEnteredPassword('')
+    setPasswordError('')
+  }
   // Convex Query & Mutations
   const videos = useQuery(api.videos.list)
   const generateUploadUrl = useMutation(api.videos.generateUploadUrl)
@@ -60,7 +111,6 @@ export function Dashboard() {
   const updateVideo = useMutation(api.videos.update)
   const reorderVideos = useMutation(api.videos.reorder)
   const removeVideo = useMutation(api.videos.remove)
-  const seedVideos = useMutation(api.videos.seedInitialVideos)
 
   // Profile Query & Mutation
   let convexProfile: any
@@ -88,6 +138,8 @@ export function Dashboard() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [filePreviewUrl, setFilePreviewUrl] = useState<string>('')
   const [videoUrlFallback, setVideoUrlFallback] = useState<string>('')
+  const [isStreamOptimized, setIsStreamOptimized] = useState(false)
+  const [isOptimizingFile, setIsOptimizingFile] = useState(false)
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState<Category>('Commercial')
   const [clientOrArtist, setClientOrArtist] = useState('')
@@ -105,7 +157,6 @@ export function Dashboard() {
   const [uploadStatus, setUploadStatus] = useState<string>('')
   const [errorMessage, setErrorMessage] = useState<string>('')
   const [successMessage, setSuccessMessage] = useState<string>('')
-  const [isSeeding, setIsSeeding] = useState(false)
   const [isReordering, setIsReordering] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [previewModalVideo, setPreviewModalVideo] = useState<VideoItem | null>(null)
@@ -122,6 +173,8 @@ export function Dashboard() {
     setSelectedFile(null)
     setFilePreviewUrl('')
     setVideoUrlFallback('')
+    setIsStreamOptimized(false)
+    setIsOptimizingFile(false)
     setTitle('')
     setCategory('Commercial')
     setClientOrArtist('')
@@ -161,6 +214,8 @@ export function Dashboard() {
     setSelectedFile(null)
     setFilePreviewUrl('')
     setVideoUrlFallback(vid.storageId ? '' : vid.videoSrc)
+    setIsStreamOptimized(false)
+    setIsOptimizingFile(false)
     setTitle(vid.title)
     setCategory(
       CATEGORIES.includes(vid.category as Category)
@@ -194,6 +249,21 @@ export function Dashboard() {
     const previewUrl = URL.createObjectURL(file)
     setFilePreviewUrl(previewUrl)
     setErrorMessage('')
+
+    // Auto-optimize video metadata for progressive streaming (FastStart)
+    setIsOptimizingFile(true)
+    optimizeForStreaming(file)
+      .then((res) => {
+        setSelectedFile(res.file)
+        setIsStreamOptimized(true)
+      })
+      .catch((err) => {
+        console.warn('Faststart inspection error:', err)
+        setSelectedFile(file)
+      })
+      .finally(() => {
+        setIsOptimizingFile(false)
+      })
 
     // Derive initial title from filename if title is empty
     if (!title) {
@@ -267,13 +337,17 @@ export function Dashboard() {
 
       // 1. Upload to Convex Storage if a new file is chosen
       if (selectedFile) {
-        setUploadStatus('1/3: Requesting secure Convex storage upload URL...')
+        setUploadStatus('1/3: Ensuring video is stream-optimized (FastStart)...')
+        const optimization = await optimizeForStreaming(selectedFile)
+        const fileToUpload = optimization.file
+
+        setUploadStatus('2/3: Requesting secure Convex storage upload URL...')
         const postUrl = await generateUploadUrl()
 
-        setUploadStatus(`2/3: Uploading ${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB to Convex storage...`)
-        let contentType = selectedFile.type
+        setUploadStatus(`2/3: Uploading ${(fileToUpload.size / (1024 * 1024)).toFixed(1)} MB to Convex storage...`)
+        let contentType = fileToUpload.type
         if (!contentType) {
-          const lowerName = selectedFile.name.toLowerCase()
+          const lowerName = fileToUpload.name.toLowerCase()
           if (lowerName.endsWith('.mov')) contentType = 'video/quicktime'
           else if (lowerName.endsWith('.webm')) contentType = 'video/webm'
           else if (lowerName.endsWith('.m4v')) contentType = 'video/mp4'
@@ -285,7 +359,7 @@ export function Dashboard() {
           headers: {
             'Content-Type': contentType,
           },
-          body: selectedFile,
+          body: fileToUpload,
         })
 
         if (!response.ok) {
@@ -405,20 +479,6 @@ export function Dashboard() {
     }
   }
 
-  // Handle Seed Initial Sample Videos
-  const handleSeed = async () => {
-    try {
-      setIsSeeding(true)
-      const res = await seedVideos()
-      setSuccessMessage(res.message || 'Sample videos added!')
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to seed sample videos.'
-      setErrorMessage(msg)
-    } finally {
-      setIsSeeding(false)
-    }
-  }
-
   // Handle Save Profile
   const handleSaveProfile = async (updated: ProfileData) => {
     try {
@@ -437,6 +497,87 @@ export function Dashboard() {
       setErrorMessage(msg)
       throw err
     }
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-black text-neutral-100 flex flex-col items-center justify-center p-4 relative noise-overlay selection:bg-[#f5d020] selection:text-black">
+        {/* Subtle Ambient Glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#f5d020]/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="w-full max-w-md bg-neutral-950 border border-neutral-800 rounded-lg p-6 sm:p-8 shadow-2xl relative z-10 flex flex-col items-center">
+          {/* Lock Icon */}
+          <div className="w-14 h-14 rounded-full bg-neutral-900 border border-[#f5d020]/30 flex items-center justify-center mb-5 text-[#f5d020] shadow-inner">
+            <Lock className="w-6 h-6" />
+          </div>
+
+          <h1 className="font-display font-black text-xl sm:text-2xl uppercase tracking-wider text-white text-center">
+            Dashboard Access
+          </h1>
+          <p className="text-xs text-neutral-400 font-sans text-center mt-2 mb-6">
+            This dashboard is protected. Enter password to manage portfolio works and profile.
+          </p>
+
+          <form onSubmit={handleUnlock} className="w-full flex flex-col gap-4">
+            <div>
+              <label
+                htmlFor="dashboard-password"
+                className="block text-xs font-mono font-bold uppercase tracking-wider text-neutral-400 mb-2"
+              >
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="dashboard-password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={enteredPassword}
+                  onChange={(e) => {
+                    setEnteredPassword(e.target.value)
+                    if (passwordError) setPasswordError('')
+                  }}
+                  placeholder="Enter password..."
+                  autoFocus
+                  className="w-full px-3.5 py-2.5 rounded-sm bg-neutral-900 border border-neutral-700 text-white placeholder-neutral-500 text-sm focus:outline-none focus:border-[#f5d020] transition-colors pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 transition-colors"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+
+              {passwordError && (
+                <div className="flex items-center gap-1.5 text-xs text-red-400 mt-2">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{passwordError}</span>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-sm bg-[#f5d020] hover:bg-yellow-400 text-black font-sans font-bold text-xs uppercase tracking-wider transition-all duration-200 shadow-md cursor-pointer mt-2"
+            >
+              <KeyRound className="w-4 h-4" />
+              <span>Unlock Dashboard</span>
+            </button>
+          </form>
+
+          <div className="mt-6 pt-4 border-t border-neutral-800/80 w-full text-center">
+            <a
+              href="/"
+              className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Portfolio</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -471,6 +612,17 @@ export function Dashboard() {
             >
               <User className="w-3.5 h-3.5 text-[#f5d020]" />
               <span>Edit Profile</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleLock}
+              title="Lock Dashboard"
+              aria-label="Lock Dashboard"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-white font-sans font-medium text-xs uppercase tracking-wider border border-neutral-700 hover:border-neutral-500 transition-colors cursor-pointer"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Lock</span>
             </button>
 
             {viewMode === 'list' ? (
@@ -613,18 +765,6 @@ export function Dashboard() {
               </div>
 
               <div className="flex items-center gap-3">
-                {(!videos || videos.length === 0) && (
-                  <button
-                    type="button"
-                    onClick={handleSeed}
-                    disabled={isSeeding}
-                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-sm bg-neutral-900 hover:bg-neutral-800 text-[#f5d020] text-xs font-mono border border-neutral-700 cursor-pointer transition-colors"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>{isSeeding ? 'Seeding...' : 'Seed 9 Defaults'}</span>
-                  </button>
-                )}
-
                 <button
                   type="button"
                   onClick={openCreateForm}
@@ -640,7 +780,7 @@ export function Dashboard() {
             {!videos ? (
               <div className="p-16 text-center text-neutral-500 font-mono text-sm flex flex-col items-center gap-3">
                 <span className="w-6 h-6 border-2 border-[#f5d020] border-t-transparent rounded-full animate-spin" />
-                <span>Loading videos from Convex...</span>
+                <span>Loading videos...</span>
               </div>
             ) : videos.length === 0 ? (
               <div className="p-16 rounded-sm bg-neutral-950 border border-dashed border-neutral-800 text-center flex flex-col items-center gap-4">
@@ -648,9 +788,9 @@ export function Dashboard() {
                   <FileVideo className="w-7 h-7" />
                 </div>
                 <div>
-                  <h3 className="font-display text-xl text-white uppercase">No videos in Convex database yet</h3>
+                  <h3 className="font-display text-xl text-white uppercase">No videos added yet</h3>
                   <p className="text-xs text-neutral-400 max-w-md mt-1">
-                    Upload your first video to show on the portfolio, or seed the 9 default portfolio videos with one click.
+                    Upload your first video to show on the portfolio.
                   </p>
                 </div>
                 <div className="flex items-center gap-3 mt-2">
@@ -661,15 +801,6 @@ export function Dashboard() {
                   >
                     <Plus className="w-4 h-4 stroke-[2.5]" />
                     <span>Upload New Video</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSeed}
-                    disabled={isSeeding}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-sm bg-neutral-900 hover:bg-neutral-800 text-neutral-300 text-xs font-mono border border-neutral-700 cursor-pointer transition-all"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-[#f5d020]" />
-                    <span>{isSeeding ? 'Seeding...' : 'Seed 9 Sample Videos'}</span>
                   </button>
                 </div>
               </div>
@@ -936,9 +1067,20 @@ export function Dashboard() {
                         <div>
                           <p className="text-sm font-bold text-white max-w-sm truncate">{selectedFile.name}</p>
                           <p className="text-xs text-neutral-400 font-mono mt-1">
-                            {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • {selectedFile.type || 'video'}
+                            {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • {selectedFile.type || 'video/mp4'}
                           </p>
                         </div>
+                        {isOptimizingFile ? (
+                          <div className="flex items-center gap-1.5 text-xs text-amber-400 font-mono">
+                            <span className="w-3 h-3 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
+                            <span>Optimizing container for instant streaming...</span>
+                          </div>
+                        ) : isStreamOptimized ? (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#f5d020]/10 border border-[#f5d020]/30 text-[#f5d020] text-xs font-mono shadow-sm">
+                            <Zap className="w-3.5 h-3.5" />
+                            <span>Stream-Optimized (FastStart Enabled)</span>
+                          </div>
+                        ) : null}
                         <span className="text-[11px] font-mono text-[#f5d020] underline">
                           Click to choose a different video file
                         </span>

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { Dashboard } from '../components/Dashboard'
 
@@ -61,9 +61,66 @@ vi.mock('convex/react', () => ({
   }),
 }))
 
+beforeEach(() => {
+  sessionStorage.setItem('dashboard_auth', 'collo21')
+})
+
 afterEach(() => {
   cleanup()
+  sessionStorage.clear()
   vi.clearAllMocks()
+})
+
+describe('Dashboard Password Protection', () => {
+  it('renders password lock screen by default when not authenticated', () => {
+    sessionStorage.clear()
+    render(<Dashboard initialAuthenticated={false} />)
+
+    expect(screen.getByText(/dashboard access/i)).toBeDefined()
+    expect(screen.getByLabelText(/^password$/i)).toBeDefined()
+    expect(screen.getByRole('button', { name: /unlock dashboard/i })).toBeDefined()
+    expect(screen.queryByText(/portfolio videos/i)).toBeNull()
+  })
+
+  it('shows error when incorrect password is submitted', () => {
+    sessionStorage.clear()
+    render(<Dashboard initialAuthenticated={false} />)
+
+    const passwordInput = screen.getByLabelText(/^password$/i)
+    fireEvent.change(passwordInput, { target: { value: 'wrongpass' } })
+
+    const unlockButton = screen.getByRole('button', { name: /unlock dashboard/i })
+    fireEvent.click(unlockButton)
+
+    expect(screen.getByText(/incorrect password\. access denied\./i)).toBeDefined()
+    expect(screen.queryByText(/portfolio videos/i)).toBeNull()
+  })
+
+  it('unlocks dashboard when entering fixed password collo21', () => {
+    sessionStorage.clear()
+    render(<Dashboard initialAuthenticated={false} />)
+
+    const passwordInput = screen.getByLabelText(/^password$/i)
+    fireEvent.change(passwordInput, { target: { value: 'collo21' } })
+
+    const unlockButton = screen.getByRole('button', { name: /unlock dashboard/i })
+    fireEvent.click(unlockButton)
+
+    expect(screen.getByText(/portfolio videos/i)).toBeDefined()
+    expect(sessionStorage.getItem('dashboard_auth')).toBe('collo21')
+  })
+
+  it('allows locking the dashboard again', () => {
+    render(<Dashboard />)
+    expect(screen.getByText(/portfolio videos/i)).toBeDefined()
+
+    const lockButton = screen.getByRole('button', { name: /lock dashboard/i })
+    fireEvent.click(lockButton)
+
+    expect(screen.getByText(/dashboard access/i)).toBeDefined()
+    expect(screen.queryByText(/portfolio videos/i)).toBeNull()
+    expect(sessionStorage.getItem('dashboard_auth')).toBeNull()
+  })
 })
 
 describe('Dashboard Route Component', () => {

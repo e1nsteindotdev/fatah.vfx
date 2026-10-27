@@ -255,7 +255,7 @@ export const seedInitialVideos = mutation({
         role: 'Director & DP',
         aspectRatio: '9:16',
         resolution: '4K Vertical',
-        videoSrc: '/vids/cigaretts.mov',
+        videoSrc: '/vids/cigaretts.mp4',
         description: 'Atmospheric neo-noir vignette exploring cinematic chiaroscuro lighting, rising smoke, and quiet tension.',
         gradient: 'from-zinc-900 via-neutral-900 to-black',
         timecode: '00:00:20:08',
