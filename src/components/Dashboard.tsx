@@ -1,5 +1,5 @@
-import { useState, useRef, useId } from 'react'
-import { useQuery, useMutation } from 'convex/react'
+import { useState, useRef, useId, useEffect } from 'react'
+import { useQuery, useMutation, useAction } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import {
@@ -31,6 +31,7 @@ import {
   Eye,
   EyeOff,
   KeyRound,
+  Cloud,
 } from 'lucide-react'
 import { VideoPlayerModal } from './VideoPlayerModal'
 import { EditProfileModal, DEFAULT_PROFILE, type ProfileData } from './EditProfileModal'
@@ -106,11 +107,41 @@ export function Dashboard({
   }
   // Convex Query & Mutations
   const videos = useQuery(api.videos.list)
-  const generateUploadUrl = useMutation(api.videos.generateUploadUrl)
   const createVideo = useMutation(api.videos.create)
   const updateVideo = useMutation(api.videos.update)
   const reorderVideos = useMutation(api.videos.reorder)
   const removeVideo = useMutation(api.videos.remove)
+
+  // Cloudflare R2 Actions
+  const generateR2UploadUrl = useAction(api.r2.generateUploadUrl)
+  const deleteVideoAction = useAction(api.r2.deleteVideo)
+  const getR2ConfigStatus = useAction(api.r2.getConfigStatus)
+  const deleteR2File = useAction(api.r2.deleteR2File)
+
+  // R2 Configuration Status State
+  const [r2Config, setR2Config] = useState<{
+    isConfigured: boolean
+    missingVars: string[]
+    bucketName: string | null
+    publicUrl: string | null
+  } | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    getR2ConfigStatus()
+      .then((status) => {
+        if (isMounted && status) {
+          setR2Config(status)
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not determine Cloudflare R2 config status:', err)
+      })
+    return () => {
+      isMounted = false
+    }
+  }, [getR2ConfigStatus])
 
   // Profile Query & Mutation
   let convexProfile: any
@@ -132,7 +163,7 @@ export function Dashboard({
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [editingVideoId, setEditingVideoId] = useState<string | null>(null)
   const [existingVideoSrc, setExistingVideoSrc] = useState<string>('')
-  const [existingStorageId, setExistingStorageId] = useState<string | undefined>(undefined)
+  const [existingR2Key, setExistingR2Key] = useState<string | undefined>(undefined)
 
   // Form State
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -169,12 +200,13 @@ export function Dashboard({
   const openCreateForm = () => {
     setEditingVideoId(null)
     setExistingVideoSrc('')
-    setExistingStorageId(undefined)
+    setExistingR2Key(undefined)
     setSelectedFile(null)
     setFilePreviewUrl('')
     setVideoUrlFallback('')
     setIsStreamOptimized(false)
     setIsOptimizingFile(false)
+    setUploadProgress(null)
     setTitle('')
     setCategory('Commercial')
     setClientOrArtist('')
@@ -203,19 +235,20 @@ export function Dashboard({
     aspectRatio: string
     resolution: string
     videoSrc: string
-    storageId?: string
+    r2Key?: string
     description: string
     gradient: string
     timecode: string
   }) => {
     setEditingVideoId(vid.id)
     setExistingVideoSrc(vid.videoSrc)
-    setExistingStorageId(vid.storageId)
+    setExistingR2Key(vid.r2Key)
     setSelectedFile(null)
     setFilePreviewUrl('')
-    setVideoUrlFallback(vid.storageId ? '' : vid.videoSrc)
+    setVideoUrlFallback(vid.r2Key ? '' : vid.videoSrc)
     setIsStreamOptimized(false)
     setIsOptimizingFile(false)
+    setUploadProgress(null)
     setTitle(vid.title)
     setCategory(
       CATEGORIES.includes(vid.category as Category)
@@ -332,19 +365,24 @@ export function Dashboard({
 
     try {
       setIsSubmitting(true)
-      let storageId: Id<'_storage'> | undefined = existingStorageId as Id<'_storage'> | undefined
+      let r2Key: string | undefined = existingR2Key
       let finalVideoSrc = videoUrlFallback.trim() || existingVideoSrc
 
-      // 1. Upload to Convex Storage if a new file is chosen
+      // 1. Upload video file if a new file is chosen
       if (selectedFile) {
+        // Check if Cloudflare R2 is configured
+        const isR2Active = r2Config ? r2Config.isConfigured : false
+
+        if (!isR2Active) {
+          throw new Error(
+            'Cloudflare R2 is not configured. Please add the required R2 environment variables in your Convex Dashboard to upload videos.'
+          )
+        }
+
         setUploadStatus('1/3: Ensuring video is stream-optimized (FastStart)...')
         const optimization = await optimizeForStreaming(selectedFile)
         const fileToUpload = optimization.file
 
-        setUploadStatus('2/3: Requesting secure Convex storage upload URL...')
-        const postUrl = await generateUploadUrl()
-
-        setUploadStatus(`2/3: Uploading ${(fileToUpload.size / (1024 * 1024)).toFixed(1)} MB to Convex storage...`)
         let contentType = fileToUpload.type
         if (!contentType) {
           const lowerName = fileToUpload.name.toLowerCase()
@@ -354,24 +392,64 @@ export function Dashboard({
           else contentType = 'video/mp4'
         }
 
-        const response = await fetch(postUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': contentType,
-          },
-          body: fileToUpload,
+        setUploadStatus('2/3: Requesting signed Cloudflare R2 upload URL...')
+        const r2Upload = await generateR2UploadUrl({
+          filename: fileToUpload.name,
+          contentType,
         })
 
-        if (!response.ok) {
-          throw new Error(`Upload to storage failed with status ${response.status}: ${response.statusText}`)
+        setUploadStatus(`2/3: Uploading ${(fileToUpload.size / (1024 * 1024)).toFixed(1)} MB to Cloudflare R2...`)
+
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest()
+          xhr.open('PUT', r2Upload.uploadUrl, true)
+          xhr.setRequestHeader('Content-Type', contentType)
+
+          xhr.upload.onprogress = (evt) => {
+            if (evt.lengthComputable) {
+              const percent = Math.round((evt.loaded / evt.total) * 100)
+              setUploadProgress(percent)
+              const loadedMb = (evt.loaded / (1024 * 1024)).toFixed(1)
+              const totalMb = (evt.total / (1024 * 1024)).toFixed(1)
+              setUploadStatus(`2/3: Uploading to Cloudflare R2 (${percent}% • ${loadedMb}/${totalMb} MB)...`)
+            }
+          }
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve()
+            } else {
+              reject(
+                new Error(
+                  `Cloudflare R2 upload failed (HTTP ${xhr.status}: ${xhr.statusText || 'Forbidden/CORS'}). Please ensure CORS is enabled on your R2 bucket.`
+                )
+              )
+            }
+          }
+
+          xhr.onerror = () => {
+            reject(
+              new Error(
+                'Cloudflare R2 upload failed. Please verify that CORS is enabled on your R2 bucket in Cloudflare dashboard.'
+              )
+            )
+          }
+
+          xhr.send(fileToUpload)
+        })
+
+        // Delete old R2 file if replacing
+        if (existingR2Key && existingR2Key !== r2Upload.key) {
+          deleteR2File({ key: existingR2Key }).catch((err) =>
+            console.warn('Could not remove previous R2 file:', err)
+          )
         }
 
-        const json = await response.json()
-        storageId = json.storageId as Id<'_storage'>
-        finalVideoSrc = '' // Storage ID takes precedence
+        r2Key = r2Upload.key
+        finalVideoSrc = r2Upload.publicUrl
       }
 
-      setUploadStatus('3/3: Saving video record to database...')
+      setUploadStatus('3/3: Saving video record to Convex...')
 
       if (isEdit) {
         // Update existing record
@@ -386,7 +464,7 @@ export function Dashboard({
           aspectRatio,
           resolution: resolution.trim() || '4K UHD',
           videoSrc: finalVideoSrc,
-          storageId,
+          r2Key,
           description: description.trim() || 'Cinematic video directed and produced by Fatah Chafaa.',
           gradient,
           timecode: timecode.trim() || `00:${duration}:00`,
@@ -405,13 +483,13 @@ export function Dashboard({
           aspectRatio,
           resolution: resolution.trim() || '4K UHD',
           videoSrc: finalVideoSrc,
-          storageId,
+          r2Key,
           description: description.trim() || 'Cinematic video directed and produced by Fatah Chafaa.',
           gradient,
           timecode: timecode.trim() || `00:${duration}:00`,
         })
 
-        setSuccessMessage(`Successfully uploaded "${title}" to Convex storage! It is now live on the portfolio.`)
+        setSuccessMessage(`Successfully uploaded "${title}" to Cloudflare R2! Video is now live.`)
       }
 
       // Reset form and return to list
@@ -421,6 +499,7 @@ export function Dashboard({
       setTitle('')
       setClientOrArtist('')
       setDescription('')
+      setUploadProgress(null)
       setViewMode('list')
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
@@ -432,6 +511,7 @@ export function Dashboard({
     } finally {
       setIsSubmitting(false)
       setUploadStatus('')
+      setUploadProgress(null)
     }
   }
 
@@ -460,20 +540,30 @@ export function Dashboard({
 
   // Handle Delete Video
   const handleDelete = async (id: string, videoTitle: string) => {
-    if (!window.confirm(`Are you sure you want to delete "${videoTitle}"? This will also remove any uploaded file from Convex storage.`)) {
+    if (!window.confirm(`Are you sure you want to delete "${videoTitle}"? This will permanently remove the video.`)) {
       return
     }
 
     try {
       setDeletingId(id)
-      await removeVideo({ id: id as Id<'videos'> })
+      // Call action that removes object from Cloudflare R2 and deletes Convex record
+      await deleteVideoAction({ id: id as Id<'videos'> })
       setSuccessMessage(`Deleted "${videoTitle}" successfully.`)
       if (editingVideoId === id) {
         setViewMode('list')
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete video.'
-      setErrorMessage(msg)
+      console.warn('R2 delete action failed, attempting direct remove:', err)
+      try {
+        await removeVideo({ id: id as Id<'videos'> })
+        setSuccessMessage(`Deleted "${videoTitle}" successfully.`)
+        if (editingVideoId === id) {
+          setViewMode('list')
+        }
+      } catch (fallbackErr: unknown) {
+        const msg = fallbackErr instanceof Error ? fallbackErr.message : 'Failed to delete video.'
+        setErrorMessage(msg)
+      }
     } finally {
       setDeletingId(null)
     }
@@ -845,13 +935,14 @@ export function Dashboard({
 
                         {/* Top Right Badges: Storage & Ratio */}
                         <div className="absolute top-2 right-2 z-20 flex items-center gap-1.5">
-                          {vid.storageId ? (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-emerald-950/90 text-emerald-300 border border-emerald-700/80 backdrop-blur-xs">
-                              Convex Storage
+                          {vid.r2Key || (vid.videoSrc && vid.videoSrc.includes('r2.dev')) ? (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-amber-950/90 text-amber-300 border border-amber-600/80 backdrop-blur-xs flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                              Cloudflare R2
                             </span>
                           ) : (
                             <span className="px-1.5 py-0.5 rounded text-[9px] font-mono uppercase bg-neutral-900/90 text-neutral-400 border border-neutral-700 backdrop-blur-xs">
-                              Local / URL
+                              No R2 Video
                             </span>
                           )}
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-black/80 text-neutral-300 border border-neutral-700">
@@ -860,32 +951,40 @@ export function Dashboard({
                         </div>
 
                         {/* Play Video Trigger Overlay */}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPreviewModalVideo({
-                              id: vid.id,
-                              title: vid.title,
-                              category: vid.category,
-                              clientOrArtist: vid.clientOrArtist,
-                              year: vid.year,
-                              duration: vid.duration,
-                              role: vid.role,
-                              aspectRatio: vid.aspectRatio,
-                              resolution: vid.resolution,
-                              videoSrc: vid.videoSrc,
-                              description: vid.description,
-                              gradient: vid.gradient,
-                              timecode: vid.timecode,
-                            })
-                          }
-                          className="absolute inset-0 z-10 flex items-center justify-center bg-black/35 group-hover:bg-black/15 transition-colors cursor-pointer"
-                          title="Preview video"
-                        >
-                          <div className="w-10 h-10 rounded-full bg-black/70 border border-white/40 flex items-center justify-center text-white group-hover:scale-110 group-hover:bg-[#f5d020] group-hover:text-black group-hover:border-[#f5d020] transition-all">
-                            <Play className="w-4 h-4 fill-current ml-0.5" />
+                        {vid.videoSrc ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewModalVideo({
+                                id: vid.id,
+                                title: vid.title,
+                                category: vid.category,
+                                clientOrArtist: vid.clientOrArtist,
+                                year: vid.year,
+                                duration: vid.duration,
+                                role: vid.role,
+                                aspectRatio: vid.aspectRatio,
+                                resolution: vid.resolution,
+                                videoSrc: vid.videoSrc,
+                                description: vid.description,
+                                gradient: vid.gradient,
+                                timecode: vid.timecode,
+                              })
+                            }
+                            className="absolute inset-0 z-10 flex items-center justify-center bg-black/35 group-hover:bg-black/15 transition-colors cursor-pointer"
+                            title="Preview video"
+                          >
+                            <div className="w-10 h-10 rounded-full bg-black/70 border border-white/40 flex items-center justify-center text-white group-hover:scale-110 group-hover:bg-[#f5d020] group-hover:text-black group-hover:border-[#f5d020] transition-all">
+                              <Play className="w-4 h-4 fill-current ml-0.5" />
+                            </div>
+                          </button>
+                        ) : (
+                          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 pointer-events-none">
+                            <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 bg-black/80 px-2 py-1 rounded border border-neutral-700">
+                              Upload R2 Video
+                            </span>
                           </div>
-                        </button>
+                        )}
                       </div>
 
                       {/* Video Info: Click to Edit */}
@@ -1012,8 +1111,8 @@ export function Dashboard({
                   </div>
                   <p className="text-xs text-neutral-400 mt-1">
                     {viewMode === 'edit'
-                      ? 'Update text fields or upload a new video file to replace the existing one in Convex storage.'
-                      : 'Upload a video file to Convex Storage and configure all cinematic fields for the portfolio.'}
+                      ? 'Update text fields or upload a new video file to Cloudflare R2.'
+                      : 'Upload video directly to Cloudflare R2 with zero Convex video storage overhead.'}
                   </p>
                 </div>
               </div>
@@ -1030,6 +1129,49 @@ export function Dashboard({
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 sm:p-8 flex flex-col gap-8">
+              {/* Cloudflare R2 Integration Status Banner */}
+              <div
+                className={`p-4 rounded-sm border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                  r2Config?.isConfigured
+                    ? 'bg-amber-950/20 border-amber-500/30 text-amber-200'
+                    : 'bg-neutral-900/80 border-neutral-800 text-neutral-300'
+                }`}
+              >
+                <div className="flex items-start sm:items-center gap-3">
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                      r2Config?.isConfigured
+                        ? 'bg-amber-500/20 text-amber-400'
+                        : 'bg-neutral-800 text-neutral-400'
+                    }`}
+                  >
+                    <Cloud className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-bold uppercase tracking-wider text-white">
+                        Cloudflare R2 Video Storage
+                      </span>
+                      {r2Config?.isConfigured ? (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-950 text-emerald-400 border border-emerald-800">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          Connected
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-neutral-800 text-neutral-400 border border-neutral-700">
+                          Pending Setup
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-neutral-400 mt-0.5 font-mono">
+                      {r2Config?.isConfigured
+                        ? `Bucket: ${r2Config.bucketName} • Convex stores text metadata only • Zero egress cost`
+                        : 'Plugin R2 env vars in Convex Dashboard to enable free-tier video hosting'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* File Dropzone & Video Preview */}
               <div className="flex flex-col lg:flex-row gap-6">
                 {/* File Picker Card */}
@@ -1038,7 +1180,7 @@ export function Dashboard({
                     htmlFor={fileInputId}
                     className="block text-xs font-mono font-bold uppercase tracking-wider text-neutral-300 mb-2"
                   >
-                    {viewMode === 'edit' ? 'Replace Video File (Optional)' : 'Video File (Convex Storage Upload) *'}
+                    {viewMode === 'edit' ? 'Replace Video File (Optional)' : 'Video File (Cloudflare R2 Direct Upload) *'}
                   </label>
 
                   <div
@@ -1070,7 +1212,17 @@ export function Dashboard({
                             {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • {selectedFile.type || 'video/mp4'}
                           </p>
                         </div>
-                        {isOptimizingFile ? (
+                        {uploadProgress !== null ? (
+                          <div className="w-full max-w-xs flex flex-col items-center gap-1">
+                            <div className="w-full bg-neutral-800 rounded-full h-2 overflow-hidden border border-neutral-700">
+                              <div
+                                className="bg-[#f5d020] h-full transition-all duration-150"
+                                style={{ width: `${uploadProgress}%` }}
+                              />
+                            </div>
+                            <span className="text-[11px] font-mono text-[#f5d020]">{uploadProgress}% uploaded to R2</span>
+                          </div>
+                        ) : isOptimizingFile ? (
                           <div className="flex items-center gap-1.5 text-xs text-amber-400 font-mono">
                             <span className="w-3 h-3 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
                             <span>Optimizing container for instant streaming...</span>
@@ -1095,7 +1247,9 @@ export function Dashboard({
                             Currently using existing video
                           </p>
                           <p className="text-xs text-neutral-400 font-mono mt-1">
-                            {existingStorageId ? 'Stored in Convex File Storage' : 'Direct URL source'}
+                            {existingR2Key || (existingVideoSrc && existingVideoSrc.includes('r2.dev'))
+                              ? 'Hosted on Cloudflare R2 (Zero Egress)'
+                              : 'Pending Cloudflare R2 upload'}
                           </p>
                         </div>
                         <span className="px-3 py-1 rounded text-xs font-mono bg-neutral-800 text-neutral-300 border border-neutral-700">
@@ -1112,7 +1266,9 @@ export function Dashboard({
                             Click to select a video file from your computer
                           </p>
                           <p className="text-xs text-neutral-500 font-mono mt-1">
-                            Auto-detects duration and aspect ratio • Uploads straight to Convex Storage
+                            {r2Config?.isConfigured
+                              ? 'Auto-detects duration and aspect ratio • Uploads directly to Cloudflare R2'
+                              : 'Auto-detects duration and aspect ratio • Uploads to Cloudflare R2'}
                           </p>
                         </div>
                         <span className="px-3 py-1 rounded text-xs font-mono bg-neutral-800 text-neutral-300 border border-neutral-700">
@@ -1392,7 +1548,7 @@ export function Dashboard({
                     <span>
                       {viewMode === 'edit'
                         ? 'Changes will be saved directly to Convex and immediately update the portfolio.'
-                        : 'New video will be uploaded to Convex storage and placed at the end of the carousel.'}
+                        : 'New video will be uploaded to Cloudflare R2 and synced to the portfolio.'}
                     </span>
                   )}
                 </div>
@@ -1425,7 +1581,7 @@ export function Dashboard({
                     ) : (
                       <>
                         <UploadCloud className="w-4 h-4" />
-                        <span>{isSubmitting ? 'Uploading to Convex...' : 'Upload Video to Portfolio'}</span>
+                        <span>{isSubmitting ? 'Uploading Video...' : 'Upload Video to Portfolio'}</span>
                       </>
                     )}
                   </button>

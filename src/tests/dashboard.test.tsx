@@ -59,6 +59,20 @@ vi.mock('convex/react', () => ({
       return Promise.resolve({ success: true })
     })
   }),
+  useAction: vi.fn((_actionRef) => {
+    return vi.fn((args) => {
+      mockRemove(args)
+      return Promise.resolve({
+        isConfigured: true,
+        missingVars: [],
+        bucketName: 'test-bucket',
+        publicUrl: 'https://pub-test.r2.dev',
+        uploadUrl: 'https://test-upload.r2.cloudflarestorage.com',
+        key: 'videos/test-key.mp4',
+        success: true,
+      })
+    })
+  }),
 }))
 
 beforeEach(() => {

@@ -1,10 +1,10 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-export const generateUploadUrl = mutation({
-  args: {},
-  handler: async (ctx) => {
-    return await ctx.storage.generateUploadUrl();
+export const getById = query({
+  args: { id: v.id("videos") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
   },
 });
 
@@ -25,36 +25,43 @@ export const list = query({
       return b._creationTime - a._creationTime;
     });
 
-    return await Promise.all(
-      videos.map(async (v) => {
-        let videoUrl = v.videoSrc || "";
-        if (v.storageId) {
-          const url = await ctx.storage.getUrl(v.storageId);
-          if (url) {
-            videoUrl = url;
-          }
-        }
-        return {
-          id: v._id,
-          _id: v._id,
-          title: v.title,
-          category: v.category as 'Commercial' | 'Music Video' | 'Narrative' | 'Documentary' | 'Fashion',
-          clientOrArtist: v.clientOrArtist,
-          year: v.year,
-          duration: v.duration,
-          role: v.role,
-          aspectRatio: v.aspectRatio,
-          resolution: v.resolution,
-          videoSrc: videoUrl,
-          storageId: v.storageId,
-          description: v.description,
-          gradient: v.gradient,
-          timecode: v.timecode,
-          order: v.order,
-          _creationTime: v._creationTime,
-        };
-      })
-    );
+    return videos.map((v) => {
+      // ONLY serve video URLs that come from Cloudflare R2.
+      // NEVER fall back to Convex storage.
+      let videoUrl = "";
+
+      if (v.r2Key) {
+        const publicUrl = (process.env.R2_PUBLIC_URL || "").replace(/\/+$/, "");
+        videoUrl = publicUrl ? `${publicUrl}/${v.r2Key}` : (v.videoSrc || "");
+      } else if (
+        v.videoSrc &&
+        (v.videoSrc.includes("r2.dev") ||
+          v.videoSrc.includes("r2.cloudflarestorage.com") ||
+          (!v.videoSrc.includes(".convex.cloud/api/storage") && !v.videoSrc.startsWith("/vids/")))
+      ) {
+        videoUrl = v.videoSrc;
+      }
+
+      return {
+        id: v._id,
+        _id: v._id,
+        title: v.title,
+        category: v.category as 'Commercial' | 'Music Video' | 'Narrative' | 'Documentary' | 'Fashion',
+        clientOrArtist: v.clientOrArtist,
+        year: v.year,
+        duration: v.duration,
+        role: v.role,
+        aspectRatio: v.aspectRatio,
+        resolution: v.resolution,
+        videoSrc: videoUrl,
+        r2Key: v.r2Key,
+        description: v.description,
+        gradient: v.gradient,
+        timecode: v.timecode,
+        order: v.order,
+        _creationTime: v._creationTime,
+      };
+    });
   },
 });
 
@@ -69,7 +76,7 @@ export const create = mutation({
     aspectRatio: v.string(),
     resolution: v.string(),
     videoSrc: v.optional(v.string()),
-    storageId: v.optional(v.id("_storage")),
+    r2Key: v.optional(v.string()),
     description: v.string(),
     gradient: v.string(),
     timecode: v.string(),
@@ -94,7 +101,7 @@ export const create = mutation({
       aspectRatio: args.aspectRatio,
       resolution: args.resolution,
       videoSrc: args.videoSrc ?? "",
-      storageId: args.storageId,
+      r2Key: args.r2Key,
       description: args.description,
       gradient: args.gradient,
       timecode: args.timecode,
@@ -116,7 +123,7 @@ export const update = mutation({
     aspectRatio: v.string(),
     resolution: v.string(),
     videoSrc: v.optional(v.string()),
-    storageId: v.optional(v.id("_storage")),
+    r2Key: v.optional(v.string()),
     description: v.string(),
     gradient: v.string(),
     timecode: v.string(),
@@ -126,11 +133,6 @@ export const update = mutation({
     const existing = await ctx.db.get(args.id);
     if (!existing) {
       throw new Error("Video not found");
-    }
-
-    // If replacing storage file with a new one, remove old file from Convex storage
-    if (args.storageId && existing.storageId && args.storageId !== existing.storageId) {
-      await ctx.storage.delete(existing.storageId);
     }
 
     await ctx.db.patch(args.id, {
@@ -143,7 +145,7 @@ export const update = mutation({
       aspectRatio: args.aspectRatio,
       resolution: args.resolution,
       videoSrc: args.videoSrc !== undefined ? args.videoSrc : existing.videoSrc,
-      storageId: args.storageId !== undefined ? args.storageId : existing.storageId,
+      r2Key: args.r2Key !== undefined ? args.r2Key : existing.r2Key,
       description: args.description,
       gradient: args.gradient,
       timecode: args.timecode,
@@ -170,9 +172,6 @@ export const remove = mutation({
   handler: async (ctx, args) => {
     const video = await ctx.db.get(args.id);
     if (!video) return;
-    if (video.storageId) {
-      await ctx.storage.delete(video.storageId);
-    }
     await ctx.db.delete(args.id);
   },
 });

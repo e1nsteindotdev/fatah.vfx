@@ -9,6 +9,7 @@
  */
 
 import type * as profile from "../profile.js";
+import type * as r2 from "../r2.js";
 import type * as videos from "../videos.js";
 
 import type {
@@ -19,6 +20,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   profile: typeof profile;
+  r2: typeof r2;
   videos: typeof videos;
 }>;
 

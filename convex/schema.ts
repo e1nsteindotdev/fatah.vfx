@@ -13,6 +13,7 @@ export default defineSchema({
     resolution: v.string(),
     videoSrc: v.optional(v.string()),
     storageId: v.optional(v.id("_storage")),
+    r2Key: v.optional(v.string()),
     description: v.string(),
     gradient: v.string(),
     timecode: v.string(),
